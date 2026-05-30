@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="יומן יום">
+<meta name="theme-color" content="#6B2D3E">
+<title>יומן פעילות</title>
+<style>
+  :root {
+    --bg: #FAF7F2;
+    --card: #FFFFFF;
+    --cream: #F5F0E8;
+    --wine: #6B2D3E;
+    --wine-muted: #9E4F62;
+    --bronze: #B08050;
+    --bronze-light: #D4A96A;
+    --text: #2A1F1A;
+    --muted: #8A7A70;
+    --border: #E8E0D5;
+    --success: #4A7C59;
+    --empty: #F0EBE3;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Arial Hebrew', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    direction: rtl;
+    overscroll-behavior: none;
+  }
+
+  /* API Key Screen */
+  #api-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 32px 24px;
+    background: var(--wine);
+  }
+  #api-screen h1 { color: var(--bronze-light); font-size: 22px; margin-bottom: 8px; }
+  #api-screen p { color: rgba(250,247,242,0.7); font-size: 14px; margin-bottom: 28px; text-align: center; line-height: 1.6; }
+  #api-key-input {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.1);
+    color: #FAF7F2;
+    font-size: 14px;
+    margin-bottom: 12px;
+    direction: ltr;
+    text-align: left;
+  }
+  #api-key-input::placeholder { color: rgba(250,247,242,0.4); }
+  #save-key-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: var(--bronze-light);
+    color: var(--wine);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #api-link { color: var(--bronze-light); font-size: 12px; margin-top: 16px; text-decoration: none; }
+
+  /* Main App */
+  #app { display: none; }
+
+  /* Header */
+  .header {
+    background: var(--wine);
+    padding: calc(var(--safe-top) + 16px) 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .header-label { color: var(--bronze-light); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .header-date { color: #FAF7F2; font-size: 17px; font-weight: 600; }
+  .header-pct { color: var(--bronze-light); font-size: 26px; font-weight: 700; text-align: left; line-height: 1; }
+  .header-pct-sub { color: rgba(250,247,242,0.5); font-size: 11px; text-align: left; margin-top: 2px; }
+  .progress-bar { height: 3px; background: rgba(255,255,255,0.15); border-radius: 2px; margin-bottom: 12px; }
+  .progress-fill { height: 100%; background: var(--bronze-light); border-radius: 2px; transition: width 0.6s ease; }
+  .tabs { display: flex; gap: 4px; padding-bottom: 14px; }
+  .tab {
+    padding: 6px 16px; border-radius: 20px; border: none; cursor: pointer;
+    font-size: 13px; font-family: inherit;
+    transition: all 0.2s;
+  }
+  .tab.active { background: var(--bronze-light); color: var(--wine); font-weight: 700; }
+  .tab.inactive { background: rgba(255,255,255,0.1); color: rgba(250,247,242,0.8); }
+
+  /* Content */
+  .content { padding: 14px 14px calc(var(--safe-bottom) + 20px); max-width: 540px; margin: 0 auto; }
+
+  /* Block card */
+  .block-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 15px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    margin-bottom: 8px;
+    position: relative;
+    user-select: none;
+  }
+  .block-card.active { border-color: var(--wine); }
+  .block-card.current { border-color: var(--bronze-light); }
+  .block-card.future { opacity: 0.4; cursor: default; }
+  .block-now-badge {
+    position: absolute; top: -1px; right: -1px;
+    background: var(--bronze-light); color: var(--wine);
+    font-size: 10px; font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 0 12px 0 8px;
+    letter-spacing: 1px;
+  }
+  .block-row { display: flex; align-items: center; gap: 12px; }
+  .block-time { min-width: 72px; font-size: 13px; font-weight: 600; direction: ltr; }
+  .block-time.logged { color: var(--wine); }
+  .block-time.empty-past { color: var(--muted); }
+  .block-content { flex: 1; }
+  .block-tags { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .cat-tag {
+    font-size: 11px; padding: 2px 9px; border-radius: 10px;
+    font-weight: 600;
+  }
+  .energy-label { font-size: 11px; color: var(--muted); }
+  .block-summary { font-size: 14px; font-weight: 500; }
+  .block-empty-past { font-size: 13px; color: var(--wine-muted); }
+  .block-future-label { font-size: 13px; color: var(--muted); font-style: italic; }
+  .block-arrow { color: var(--muted); font-size: 16px; transition: transform 0.2s; margin-right: 4px; }
+  .block-arrow.open { transform: rotate(90deg); }
+
+  /* Expanded input */
+  .block-input {
+    background: var(--cream);
+    border: 1px solid var(--wine);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    padding: 14px 15px;
+    margin-top: -4px;
+    margin-bottom: 8px;
+  }
+  .input-hint { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .kw-textarea {
+    width: 100%; min-height: 70px;
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 14px;
+    font-family: inherit; background: var(--card);
+    color: var(--text); resize: none; direction: rtl;
+  }
+  .input-actions { display: flex; gap: 8px; margin-top: 10px; justify-content: flex-end; }
+  .btn-cancel {
+    padding: 9px 16px; border: 1px solid var(--border);
+    border-radius: 8px; background: transparent;
+    cursor: pointer; font-size: 13px; color: var(--muted);
+    font-family: inherit;
+  }
+  .btn-log {
+    padding: 9px 18px; border: none; border-radius: 8px;
+    background: var(--wine); color: #FAF7F2;
+    cursor: pointer; font-size: 13px; font-weight: 600;
+    font-family: inherit;
+  }
+  .btn-log:disabled { background: var(--muted); cursor: wait; }
+
+  /* Summary view */
+  .summary-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .summary-title {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .cat-row { margin-bottom: 10px; }
+  .cat-row-top { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
+  .cat-bar-bg { height: 6px; background: var(--empty); border-radius: 3px; }
+  .cat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .energy-bars { display: flex; gap: 6px; align-items: flex-end; height: 60px; }
+  .energy-bar { flex: 1; border-radius: 4px; transition: height 0.6s ease; }
+  .energy-axis { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--muted); direction: ltr; }
+  .export-card {
+    background: var(--cream); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px;
+  }
+  .export-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .export-hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; }
+  .btn-export {
+    width: 100%; padding: 12px; border: none; border-radius: 8px;
+    background: var(--wine); color: #FAF7F2;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-export:disabled { background: var(--muted); cursor: not-allowed; }
+  .settings-link {
+    text-align: center; padding: 16px 0;
+    font-size: 12px; color: var(--muted); cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<!-- API Key Screen -->
+<div id="api-screen">
+  <div class="header-label" style="margin-bottom:16px">יומן פעילות יומי</div>
+  <h1>חיבור Anthropic API</h1>
+  <p>הכנס את ה-API key שלך פעם אחת.<br>הוא נשמר רק במכשיר שלך.</p>
+  <input id="api-key-input" type="password" placeholder="sk-ant-api03-..." autocomplete="off" autocorrect="off" spellcheck="false">
+  <button id="save-key-btn" onclick="saveApiKey()">שמור והמשך</button>
+  <a href="https://console.anthropic.com/settings/keys" target="_blank" class="api-link">קבל API key ← console.anthropic.com</a>
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-label">יומן פעילות</div>
+        <div class="header-date" id="header-date"></div>
+      </div>
+      <div>
+        <div class="header-pct" id="header-pct">0%</div>
+        <div class="header-pct-sub" id="header-sub">0/0 בלוקים</div>
+      </div>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="tabs">
+      <button class="tab active" onclick="setView('timeline')">ציר זמן</button>
+      <button class="tab inactive" onclick="setView('summary')">סיכום יום</button>
+    </div>
+  </div>
+  <div class="content">
+    <div id="timeline-view"></div>
+    <div id="summary-view" style="display:none"></div>
+  </div>
+</div>
+
+<script>
+const BLOCKS = Array.from({length: 9}, (_, i) => {
+  const s = 6 + i * 2, e = s + 2;
+  const fmt = h => String(h).padStart(2,'0') + ':00';
+  return { id: i, label: `${fmt(s)}–${fmt(e)}`, startHour: s, endHour: e };
+});
+
+const CAT_COLORS = {
+  'ניהול':'#6B2D3E','מטבח':'#B08050','אדמין':'#4A6B8A',
+  'פגישות':'#4A7C59','לוגיסטיקה':'#7A5C8A','אישי':'#8A6A4A','הפסקה':'#6A7A6A'
+};
+
+let entries = {};
+let activeBlock = null;
+let currentView = 'timeline';
+
+// Storage
+const STORAGE_KEY = 'daylog_' + new Date().toISOString().slice(0,10);
+
+function loadEntries() {
+  try { entries = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch { entries = {}; }
+}
+function saveEntries() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+}
+
+// API Key
+function saveApiKey() {
+  const key = document.getElementById('api-key-input').value.trim();
+  if (!key.startsWith('sk-')) { alert('Key לא תקין'); return; }
+  localStorage.setItem('anthropic_key', key);
+  init();
+}
+function getApiKey() { return localStorage.getItem('anthropic_key'); }
+
+// Claude API
+async function expandWithClaude(keywords, timeLabel) {
+  const key = getApiKey();
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: `אתה עוזר ניהול זמן. קבל מילות מפתח קצרות על מה שאדם עשה בחלון זמן מסוים והפוך אותן לרשומת יומן תמציתית ומקצועית בעברית.
+פורמט התשובה שלך הוא JSON בלבד, ללא הסברים:
+{"summary":"משפט אחד תמציתי","tasks":["משימה 1","משימה 2"],"category":"אחת מ: ניהול / מטבח / אדמין / פגישות / לוגיסטיקה / אישי / הפסקה","energy":"גבוהה / בינונית / נמוכה"}`,
+      messages: [{ role: 'user', content: `חלון זמן: ${timeLabel}\nמילות מפתח: ${keywords}` }]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const text = data.content?.find(b => b.type === 'text')?.text || '{}';
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+// Current block
+function getCurrentBlock() {
+  const h = new Date().getHours();
+  for (let i = 0; i < BLOCKS.length; i++) {
+    if (h >= BLOCKS[i].startHour && h < BLOCKS[i].endHour) return i;
+  }
+  return BLOCKS.length - 1;
+}
+
+function getStats() {
+  const h = new Date().getHours();
+  const pastBlocks = BLOCKS.filter(b => b.endHour <= h).length + (BLOCKS.some(b => b.startHour <= h && b.endHour > h) ? 1 : 0);
+  const logged = Object.keys(entries).length;
+  const pct = pastBlocks > 0 ? Math.round((logged / Math.min(logged + (pastBlocks - logged), pastBlocks)) * 100) : 0;
+  return { logged, total: pastBlocks, pct: Math.min(100, Math.round(logged/Math.max(pastBlocks,1)*100)) };
+}
+
+function updateHeader() {
+  const now = new Date();
+  document.getElementById('header-date').textContent = now.toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+  const { logged, total, pct } = getStats();
+  document.getElementById('header-pct').textContent = pct + '%';
+  document.getElementById('header-sub').textContent = `${logged}/${total} בלוקים`;
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+// Timeline
+function renderTimeline() {
+  const cur = getCurrentBlock();
+  const h = new Date().getHours();
+  let html = '';
+  BLOCKS.forEach(block => {
+    const e = entries[block.id];
+    const isActive = activeBlock === block.id;
+    const isCurrent = block.id === cur;
+    const isPast = block.endHour <= h;
+    const isFuture = block.startHour > h;
+
+    let cardClass = 'block-card';
+    if (isActive) cardClass += ' active';
+    else if (isCurrent) cardClass += ' current';
+    if (isFuture) cardClass += ' future';
+
+    const onclickAttr = isFuture ? '' : `onclick="toggleBlock(${block.id})"`;
+
+    let content = '';
+    if (e) {
+      const catColor = CAT_COLORS[e.category] || '#6B2D3E';
+      const energyIcon = e.energy === 'גבוהה' ? '⚡' : e.energy === 'בינונית' ? '→' : '○';
+      content = `
+        <div class="block-content">
+          <div class="block-tags">
+            <span class="cat-tag" style="background:${catColor}18;color:${catColor}">${e.category||''}</span>
+            <span class="energy-label">${energyIcon} ${e.energy||''}</span>
+          </div>
+          <div class="block-summary">${e.summary||''}</div>
+        </div>`;
+    } else if (isPast) {
+      content = `<div class="block-content"><div class="block-empty-past">⚠ לא תועד</div></div>`;
+    } else {
+      content = `<div class="block-content"><div class="block-future-label">טרם הגיע</div></div>`;
+    }
+
+    html += `
+      <div class="${cardClass}" ${onclickAttr}>
+        ${isCurrent ? '<div class="block-now-badge">עכשיו</div>' : ''}
+        <div class="block-row">
+          <div class="block-time ${e ? 'logged' : 'empty-past'}" style="direction:ltr">${block.label}</div>
+          ${content}
+          ${!isFuture ? `<div class="block-arrow ${isActive ? 'open' : ''}">‹</div>` : ''}
+        </div>
+      </div>`;
+
+    if (isActive) {
+      html += `
+        <div class="block-input">
+          <div class="input-hint">כתוב כמה מילות מפתח — Claude ימלא את השאר</div>
+          <textarea class="kw-textarea" id="kw-${block.id}" placeholder="לדוגמה: ישיבה ספקים, בדיקת מלאי, שיחה הדס">${e?.keywords||''}</textarea>
+          <div class="input-actions">
+            <button class="btn-cancel" onclick="cancelBlock(event)">ביטול</button>
+            <button class="btn-log" id="log-btn-${block.id}" onclick="logBlock(event, ${block.id})">תעד</button>
+          </div>
+        </div>`;
+    }
+  });
+
+  document.getElementById('timeline-view').innerHTML = html;
+  if (activeBlock !== null) {
+    setTimeout(() => {
+      const ta = document.getElementById(`kw-${activeBlock}`);
+      if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    }, 50);
+  }
+}
+
+function toggleBlock(id) {
+  activeBlock = activeBlock === id ? null : id;
+  renderTimeline();
+}
+function cancelBlock(e) {
+  e.stopPropagation();
+  activeBlock = null;
+  renderTimeline();
+}
+async function logBlock(e, id) {
+  e.stopPropagation();
+  const kw = document.getElementById(`kw-${id}`)?.value?.trim();
+  if (!kw) return;
+  const btn = document.getElementById(`log-btn-${id}`);
+  btn.disabled = true; btn.textContent = 'מעבד...';
+  try {
+    const block = BLOCKS[id];
+    const result = await expandWithClaude(kw, block.label);
+    entries[id] = { keywords: kw, ...result, timestamp: new Date().toISOString(), blockLabel: block.label };
+    saveEntries();
+    activeBlock = null;
+    updateHeader();
+    renderTimeline();
+  } catch(err) {
+    alert('שגיאה: ' + err.message);
+    btn.disabled = false; btn.textContent = 'תעד';
+  }
+}
+
+// Summary
+function renderSummary() {
+  const h = new Date().getHours();
+  const vals = Object.values(entries);
+
+  // Category breakdown
+  const cats = {};
+  vals.forEach(e => { cats[e.category] = (cats[e.category]||0) + 1; });
+  const total = Object.values(cats).reduce((a,b)=>a+b,0);
+
+  let catsHtml = total === 0
+    ? '<div style="color:var(--muted);font-size:13px">עדיין אין נתונים מספיקים</div>'
+    : Object.entries(cats).sort((a,b)=>b[1]-a[1]).map(([cat, count]) => {
+        const color = CAT_COLORS[cat] || '#6B2D3E';
+        const pct = Math.round(count/total*100);
+        return `<div class="cat-row">
+          <div class="cat-row-top">
+            <span style="color:${color};font-weight:600">${cat}</span>
+            <span style="color:var(--muted)">${count*2}ש׳ (${pct}%)</span>
+          </div>
+          <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+        </div>`;
+      }).join('');
+
+  // Energy bars
+  const energyBars = BLOCKS.map(b => {
+    const e = entries[b.id];
+    const height = e ? (e.energy==='גבוהה'?60:e.energy==='בינונית'?35:18) : 4;
+    const color = e ? (e.energy==='גבוהה'?'var(--success)':e.energy==='בינונית'?'var(--bronze)':'var(--wine-muted)') : 'var(--empty)';
+    const opacity = b.startHour > h ? 0.3 : 1;
+    return `<div class="energy-bar" style="height:${height}px;background:${color};opacity:${opacity}" title="${b.label}"></div>`;
+  }).join('');
+
+  document.getElementById('summary-view').innerHTML = `
+    <div class="summary-card">
+      <div class="summary-title">פילוח לפי קטגוריה</div>
+      ${catsHtml}
+    </div>
+    <div class="summary-card">
+      <div class="summary-title">רמת אנרגיה לאורך היום</div>
+      <div class="energy-bars">${energyBars}</div>
+      <div class="energy-axis"><span>06:00</span><span>14:00</span><span>22:00</span></div>
+    </div>
+    <div class="export-card">
+      <div class="export-title">ייצוא ל-Google Sheets</div>
+      <div class="export-hint">לחץ להעתקה ← הדבק ישירות בגליון (Ctrl+V)</div>
+      <button class="btn-export" ${total===0?'disabled':''} onclick="exportTSV()">
+        ${total===0 ? 'אין נתונים לייצוא' : 'העתק טבלה לגליון'}
+      </button>
+    </div>
+    <div class="settings-link" onclick="resetApiKey()">שנה API Key</div>
+  `;
+}
+
+function exportTSV() {
+  const rows = [['חלון זמן','סיכום','משימות','קטגוריה','אנרגיה','מילות מפתח']];
+  BLOCKS.forEach(b => {
+    const e = entries[b.id];
+    if (e) rows.push([b.label, e.summary||'', (e.tasks||[]).join(' | '), e.category||'', e.energy||'', e.keywords||'']);
+  });
+  const tsv = rows.map(r => r.join('\t')).join('\n');
+  navigator.clipboard.writeText(tsv).then(() => {
+    const btn = document.querySelector('.btn-export');
+    btn.textContent = '✓ הועתק! עבור ל-Sheets והדבק';
+    setTimeout(() => btn.textContent = 'העתק טבלה לגליון', 3000);
+  });
+}
+
+function resetApiKey() {
+  if (confirm('למחוק את ה-API Key ולהתחבר מחדש?')) {
+    localStorage.removeItem('anthropic_key');
+    location.reload();
+  }
+}
+
+function setView(v) {
+  currentView = v;
+  document.getElementById('timeline-view').style.display = v==='timeline'?'block':'none';
+  document.getElementById('summary-view').style.display = v==='summary'?'block':'none';
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.className = 'tab ' + (['timeline','summary'][i]===v ? 'active' : 'inactive');
+  });
+  if (v==='summary') renderSummary();
+}
+
+function init() {
+  loadEntries();
+  document.getElementById('api-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  updateHeader();
+  renderTimeline();
+}
+
+// Boot
+if (getApiKey()) {
+  init();
+} else {
+  document.getElementById('api-screen').style.display = 'flex';
+}
+</script>
+</body>
+</html>
